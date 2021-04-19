@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">SpaceX</string>
+    <string name="screen_title">Falcon 9 Launches</string>
+    <string name="end_of_list">End of list\nTap to scroll to top</string>
+
+    <string name="launch_date_xx">Launch Date: %1$s</string>
+    <string name="mission_success">Mission Success:\u0020</string>
+
+    <string name="retry">Retry</string>
+
+</resources>
