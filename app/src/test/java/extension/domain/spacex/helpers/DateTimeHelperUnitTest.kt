@@ -10,11 +10,10 @@ import java.util.*
 
 class DateTimeHelperUnitTest {
 
-    private var dateTimeHelper: DateTimeHelper? = null
+    lateinit var dateTimeHelper: DateTimeHelper
 
     @Before
     fun before() {
-        dateTimeHelper = DateTimeHelper
     }
 
     @Test
@@ -29,12 +28,12 @@ class DateTimeHelperUnitTest {
             set(Calendar.DAY_OF_MONTH, 24)
             set(Calendar.YEAR, 2006)
         }.time
-        val dateStamp = dateTimeHelper!!.toDateStamp(date)
+        val dateStamp = dateTimeHelper.toDateStamp(date)
         assertEquals("24-03-2006", dateStamp)
     }
 
     @After
     fun after() {
-        dateTimeHelper = null
+
     }
 }

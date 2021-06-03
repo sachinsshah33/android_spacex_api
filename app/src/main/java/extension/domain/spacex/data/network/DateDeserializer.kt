@@ -19,13 +19,13 @@ class DateDeserializer : JsonDeserializer<Date?> {
         typeOF: Type?,
         context: JsonDeserializationContext?
     ): Date? {
-        if (jsonElement?.asString.isNullOrEmpty()) return null
-        try {
-            val dateStr = jsonElement!!.asString
-            return SimpleDateFormat(Constants.DATE_FORMAT, Locale.getDefault()).parse(dateStr)
+        val dateStr = jsonElement?.asString
+        if (dateStr.isNullOrEmpty()) return null
+        return try {
+            SimpleDateFormat(Constants.DATE_TIME_FORMAT, Locale.getDefault()).parse(dateStr)
         } catch (ex: ParseException) {
             ex.printStackTrace()
+            null
         }
-        return null
     }
 }

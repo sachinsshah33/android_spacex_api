@@ -2,81 +2,74 @@ package extension.domain.spacex.ui.main
 
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.paging.LoadState
-import androidx.recyclerview.widget.LinearLayoutManager
+import dagger.hilt.android.AndroidEntryPoint
 import extension.domain.spacex.data.models.Launch
 import extension.domain.spacex.databinding.ActivityMainBinding
 import extension.domain.spacex.ui.adapters.LaunchAdapter
+import extension.domain.spacex.ui.adapters.LaunchClickListener
 import extension.domain.spacex.ui.adapters.LaunchLoadStateAdapter
 import extension.domain.spacex.utils.Constants
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.koin.androidx.viewmodel.ext.android.viewModel
 
-class MainActivity : AppCompatActivity() {
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity(), LaunchClickListener {
 
-    private val viewModel: MainViewModel by viewModel()
+    private val viewModel: MainViewModel by viewModels()
 
     private lateinit var launchAdapter: LaunchAdapter
-    private lateinit var mainBinding: ActivityMainBinding
 
-    val onClickItem: (item: Launch?) -> Unit = {
-        if (it == null) {
-            //Scroll launchRecycler to top
-            val size = launchAdapter.snapshot().size
-            if (size > Constants.DEFAULT_LIMIT * 3) {
-                //If its large then quickly scroll
-                mainBinding.launchRecycler.scrollToPosition(0)
-            } else {
-                //Otherwise smooth scroll looks nicer
-                mainBinding.launchRecycler.smoothScrollToPosition(0)
-            }
-            //Probably should move this to an interface if more functionality is to be added
-        } else {
-            Toast.makeText(this, it.details, Toast.LENGTH_LONG).show()
-            //todo: send parcelable object into new activity when create details screen
-        }
+    private val binding by lazy {
+        ActivityMainBinding.inflate(layoutInflater)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mainBinding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(mainBinding.root)
+        setContentView(binding.root)
 
-        launchAdapter = LaunchAdapter(onClickItem)
 
-        mainBinding.launchRecycler.apply {
-            layoutManager = LinearLayoutManager(context)
+        setupView()
+        fetchLaunchesFromCloud()
+    }
+
+    fun setupView(){
+        launchAdapter = LaunchAdapter(this)
+        binding.launchRecycler.apply {
             adapter = launchAdapter.withLoadStateFooter(
                 footer = LaunchLoadStateAdapter { launchAdapter.retry() }
             )
         }
 
-        lifecycleScope.launch {
-            viewModel.launches.collectLatest {
-                launchAdapter.submitData(it)
-            }
-        }
 
-        mainBinding.retry.setOnClickListener {
+        binding.retry.setOnClickListener {
             launchAdapter.retry()
+        }
+        binding.cache.setOnClickListener {
+            fetchLaunchesFromCache()
         }
 
         launchAdapter.addLoadStateListener { loadState ->
             if (loadState.refresh is LoadState.Loading) {
-                mainBinding.retry.isVisible = false
-                mainBinding.spinner.isVisible = true
+                binding.retry.isVisible = false
+                binding.cache.isVisible = false
+                binding.spinner.isVisible = true
             } else {
-                mainBinding.spinner.isVisible = false
+                binding.spinner.isVisible = false
 
                 val errorState = when {
                     loadState.append is LoadState.Error -> loadState.append as LoadState.Error
                     loadState.prepend is LoadState.Error -> loadState.prepend as LoadState.Error
                     loadState.refresh is LoadState.Error -> {
-                        mainBinding.retry.isVisible = true
+                        binding.retry.isVisible = true
+                        binding.cache.isVisible = true
                         loadState.refresh as LoadState.Error
                     }
                     else -> null
@@ -86,5 +79,57 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+
+    var cloudCoroutine: Job? = null
+    private fun fetchLaunchesFromCloud(){
+        cacheCoroutine?.cancel()
+
+        cloudCoroutine?.cancel()
+        cloudCoroutine = CoroutineScope(Dispatchers.Main).launch {
+            viewModel.launchesFromCloud.observe(this@MainActivity, {
+                lifecycleScope.launch {
+                    launchAdapter.submitData(it)
+                }
+            })
+        }
+    }
+
+    var cacheCoroutine: Job? = null
+    private fun fetchLaunchesFromCache(){
+        cloudCoroutine?.cancel()
+
+        cacheCoroutine?.cancel()
+        cacheCoroutine = CoroutineScope(Dispatchers.Main).launch {
+            viewModel.launchesFromCache.observe(this@MainActivity, {
+                lifecycleScope.launch {
+                    launchAdapter.submitData(it)
+                }
+            })
+        }
+    }
+
+    override fun itemClicked(launch: Launch?) {
+        if (launch == null) {
+            //Scroll launchRecycler to top
+            val size = launchAdapter.snapshot().size
+            if (size > Constants.DEFAULT_LIMIT * 3) {
+                //If its large then quickly scroll
+                binding.launchRecycler.scrollToPosition(0)
+            } else {
+                //Otherwise smooth scroll looks nicer
+                binding.launchRecycler.smoothScrollToPosition(0)
+            }
+        } else {
+            Toast.makeText(this, launch.details, Toast.LENGTH_LONG).show()
+            //todo: send parcelable object into new activity when create details screen
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cloudCoroutine?.cancel()
+        cacheCoroutine?.cancel()
     }
 }

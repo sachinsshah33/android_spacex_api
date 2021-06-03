@@ -14,7 +14,7 @@ import extension.domain.spacex.databinding.LaunchItemEndFooterBinding
 import extension.domain.spacex.ui.main.LaunchUIModel
 import extension.domain.spacex.utils.extensions.toDateStamp
 
-class LaunchAdapter(val onItemSelected: ((Launch?) -> Unit)? = null) :
+class LaunchAdapter(private val launchClickListener: LaunchClickListener? = null) :
     PagingDataAdapter<LaunchUIModel, RecyclerView.ViewHolder>(
         LaunchUIModelComparator
     ) {
@@ -27,11 +27,8 @@ class LaunchAdapter(val onItemSelected: ((Launch?) -> Unit)? = null) :
                 is LaunchUIModel.LaunchItem -> {
                     val viewHolder = holder as LaunchViewHolder
 
-                    viewHolder.binding.launchBox.setOnClickListener {
-                        onItemSelected?.invoke(launchUIModel.launch)
-                    }
+                    viewHolder.binding.model = launchUIModel.launch
 
-                    viewHolder.binding.name.text = launchUIModel.launch.name
                     viewHolder.binding.launchDate.text = String.format(
                         viewHolder.itemView.context.getString(R.string.launch_date_xx),
                         launchUIModel.launch.date_utc?.toDateStamp()
@@ -48,11 +45,12 @@ class LaunchAdapter(val onItemSelected: ((Launch?) -> Unit)? = null) :
 
                     viewHolder.binding.missionSuccessIcon.setImageResource(if (launchUIModel.launch.success == true) R.drawable.ic_baseline_tick else R.drawable.ic_baseline_cross)
                 }
+
                 is LaunchUIModel.EndFooterItem -> {
                     val viewHolder = holder as LaunchEndFooterViewHolder
                     viewHolder.binding
                         .endFooterBox.setOnClickListener {
-                            onItemSelected?.invoke(null)
+                            launchClickListener?.itemClicked(null)
                         }
                 }
             }
@@ -110,5 +108,8 @@ class LaunchAdapter(val onItemSelected: ((Launch?) -> Unit)? = null) :
             ITEM(0), FOOTER(1);
         }
     }
+}
 
+interface LaunchClickListener {
+    fun itemClicked(launch: Launch?)
 }
